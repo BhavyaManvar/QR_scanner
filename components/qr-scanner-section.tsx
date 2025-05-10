@@ -34,7 +34,6 @@ export default function QrScannerSection() {
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   const mountCountRef = useRef(0)
-  const tabsRef = useRef<HTMLDivElement>(null)
 
   // Prevent hydration mismatch by tracking component mounting
   useEffect(() => {
@@ -111,50 +110,44 @@ export default function QrScannerSection() {
     })
   }
 
-  const handleScan = async (qrData: string) => {
-    if (!qrData || qrData.trim() === "") {
-      setError("Unable to read QR code. Please try again.")
-      return
+  const handleScan = async (qrData: any) => {
+    console.log("Received QR Data:", qrData); // Debugging log
+  
+    if (!qrData || typeof qrData !== "object" || !qrData.decoded_text) {
+      console.error("Invalid QR Data received:", qrData);
+      setError("Invalid QR data. Please try again.");
+      return;
     }
-
-    setIsLoading(true)
-    setError(null)
-    setScanResult(null)
-
+  
+    setIsLoading(true);
+    setError(null);
+    setScanResult(null);
+  
     try {
-      let url = qrData
-      // If the QR data doesn't look like a URL, display as raw text
-      if (!qrData.startsWith("http") && !qrData.includes("://")) {
-        url = `data:text/plain,${encodeURIComponent(qrData)}`
-      }
-
-      const result = await analyzeSecurity(url, qrData)
-      setScanResult(result)
+      // Use the `decoded_text` from the backend response
+      const url = qrData.decoded_text;
+      const result = {
+        url: url,
+        riskLevel: qrData.riskLevel,
+        message: qrData.message,
+        timestamp: new Date().toISOString(),
+      };
+  
+      console.log("Setting Scan Result:", result);
+      setScanResult(result);
     } catch (err) {
-      setError("An error occurred while analyzing the QR code. Please try again.")
-      console.error("QR scan error:", err)
+      setError("An error occurred while analyzing the QR code. Please try again.");
+      console.error("QR scan error:", err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+  
+  
+  
 
   const handleTabChange = (value: string) => {
-    // Ensure we're using the correct tab value
-    const tabValue = value === "upload" ? "upload" : "camera";
-    setActiveTab(tabValue);
-    setScanResult(null);
-    setError(null);
-    
-    // Reset permission denied state when switching to upload tab
-    if (tabValue === "upload") {
-      setPermissionDenied(false);
-    }
-
-    // Scroll the scanner section into view
-    const scannerSection = document.getElementById('scanner');
-    if (scannerSection) {
-      scannerSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    setActiveTab(value)
   }
 
   const handleReset = () => {
@@ -187,18 +180,10 @@ export default function QrScannerSection() {
               </p>
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row flex-wrap">
-              <Button 
-                onClick={() => handleTabChange("camera")} 
-                variant={activeTab === "camera" ? "default" : "outline"}
-                className="transition-all duration-300 hover:shadow-md"
-              >
+              <Button onClick={() => setActiveTab("camera")} variant="outline" className="transition-all duration-300 hover:shadow-md">
                 Use Camera
               </Button>
-              <Button 
-                onClick={() => handleTabChange("upload")} 
-                variant={activeTab === "upload" ? "default" : "outline"}
-                className="transition-all duration-300 hover:shadow-md"
-              >
+              <Button onClick={() => setActiveTab("upload")} variant="outline" className="transition-all duration-300 hover:shadow-md">
                 Upload Image
               </Button>
               <Button onClick={viewScanHistory} variant="outline" className="transition-all duration-300 hover:shadow-md">
@@ -209,7 +194,7 @@ export default function QrScannerSection() {
 
           {/* Scanner Component */}
           {isMounted && (
-            <div className="mx-auto w-full max-w-[500px]" ref={tabsRef}>
+            <div className="mx-auto w-full max-w-[500px]">
               <Card className="transition-all duration-300 hover:shadow-md">
                 <CardHeader>
                   <CardTitle>QR Code Scanner</CardTitle>
@@ -260,14 +245,10 @@ export default function QrScannerSection() {
 
                   {/* Scanner UI */}
                   {!scanResult && !isLoading && !error && (
-                    <Tabs 
-                      value={activeTab} 
-                      onValueChange={handleTabChange} 
-                      className="w-full"
-                    >
+                    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                       <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="camera">Camera</TabsTrigger>
-                        <TabsTrigger value="upload">Upload</TabsTrigger>
+                        <TabsTrigger value="camera" className="transition-all duration-200">Camera</TabsTrigger>
+                        <TabsTrigger value="upload" className="transition-all duration-200">Upload</TabsTrigger>
                       </TabsList>
                       <TabsContent value="camera" className="p-4">
                         {!permissionDenied ? (
